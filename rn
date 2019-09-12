@@ -1,0 +1,450 @@
+#!/bin/bash
+#   Function:
+#       Renaming with regex.
+#
+#   Author  : Boyu Mi
+#   Date    : 2019/09/12
+#   Version : 1.0.0
+#   
+#   Change Log:
+#       2019/09/12, initial version
+#   
+
+##=============================================================================
+## FUNCTIONS
+##=============================================================================
+# simplified colorful echo
+function cecho()
+{
+    # cecho "contents to show" [foreground color] [background color]
+
+    function color_code()
+    {
+        case "$1" in
+            black) return 0 ;;
+            red) return 1 ;;
+            green) return 2 ;;
+            yellow) return 3 ;;
+            blue) return 4 ;;
+            purple) return 5 ;;
+            skyblue) return 6 ;;
+            white) return 7;;
+            *) return 8 ;;
+        esac
+    }
+    color_code "$2"; fore=$?
+    color_code "$3"; back=$?
+    if [[ $fore -lt 8 ]]; then
+        if [[ $back -lt 8 ]]; then
+            echo -n -e "\033[4${back};3${fore}m${1}\033[0m"
+        else
+            echo -n -e "\033[3${fore}m${1}\033[0m"
+        fi
+    else
+        echo -n "$1"
+    fi
+}
+
+##=============================================================================
+function print_error()
+{
+    cecho "rn: " red; echo "$1"
+}
+
+##=============================================================================
+function print_filename()
+{
+    if [[ -f "$1" ]]; then
+        cecho "$1" yellow
+    elif [[ -d "$1" ]]; then
+        cecho "$1" blue
+    elif [[ -L "$1" ]]; then
+        cecho "$1" green
+    else
+        cecho "$1"
+    fi
+}
+
+##=============================================================================
+function print_help() 
+{
+    echo 'Renaming with regex.
+
+Usage:
+    rn [options] [-o origin -s substitute] [names]
+
+Options:
+    -o | --origin ptn   the original name pattern (support regex)
+    -s | --substi ptn   the substitutional name pattern (support regex)
+    -f | --force        force mode, overwrite existing target
+    -t | --test         test mode, no real action 
+    -q | --quiet        quiet mode, show least information
+    -v | --verbose      verbose mode, show most information
+    -l | --lower        to lower case, use -f if the name is case insensitive
+    -u | --upper        to upper case, use -f if the name is case insensitive
+    -n | --number=[ch]  "ch" will be replaced by a serial number in substitute,
+                        the default "ch" is "#"
+         --nbegin #     beginning number when -n is used, defaulted as 1
+         --nstep #      step number when -n is used, defaulted as 1 
+         --nwidth #     least width of the serial number when -n is used,
+                        defaulted as 2 (eg: 1 will be 01)
+    -A | --all          all types of file will be renamed
+    -F | --file         regular file will be renamed
+    -D | --dir          directory will be renamed
+    -B | --block        block device will be renamed
+    -C | --char         character device will be renamed
+    -S | --socket       socket file will be renamed
+    -P | --pipe         pipe file will be renamed
+    -L | --link         link file will be renamed
+         --help         show this help information
+         --version      show version information
+         --example      show examples
+         --return-code  show return codes
+
+The "origin" and "substitute" should be given at the same time for command "sed"
+to do the substitution. If both were omitted, option --lower and --upper can be 
+used to transform letter case of the "names", and option --number (together with 
+number settings --nbegin, --nstep, --nwidth) can be used to add serial number to 
+the front of the "names".
+
+If the "names" is omitted, items of command "ls" will be used. 
+
+If no file type option is given, option --all is used; otherwise, only files of
+given types will be operated.
+
+Any bugs or questions, please contact Boyu Mi(miboyu@yeah.net).
+'
+}
+
+##=============================================================================
+function print_version()
+{
+    echo 'rn 1.0.0 (2019/09/12)
+Copyright (c) 2019 miboyu(miboyu@yeah.net)'
+}
+
+##=============================================================================
+function print_example()
+{
+    echo 'Examples:
+# 1.Change all the names at pwd to UPPER CASE
+        $ rn -u
+
+# 2.Change the names of .txt files to lower case
+        $ rn -l "*.txt"
+
+# 3.Add serial number at the beginning 
+        $ rn -n "*.jpg"
+For example, "a.jpg" "b.jpg" will become "01a.jpg" "02b.jpg"
+
+# 4.Add serial number at given position
+        $ rn -n -o "jpg$" -s "-#.jpg" 
+For example, "a.jpg" "b.jpg" will become "a-01.jpg" "b-02.jpg"
+
+# 5.Remove a certain part in filenames
+        $ rn -o "\(.*\)-.*\.\(.*\)$" "\1.\2"
+For example, "a-01.jpg" "b-02.jpg" will become "a.jpg" "b.jpg"
+'
+}
+
+##=============================================================================
+function print_return_code()
+{
+    echo 'Return code and meaning:
+    0   Success
+    1   Argument error
+    2   Internal error
+    3   Invalid "origin" and "substitute"
+    4   Parameter type error
+'
+}
+
+##=============================================================================
+function number_check()
+{                                
+    # check whether the given argument is a number
+    expr $1 + 0 &> /dev/null    
+    return $?
+}
+
+
+##=============================================================================
+##=============================================================================
+## parsing the command line arguments with "getopt"
+# define short arguments and long arguments, see "print_help()"
+short_args="o:s:ftqvlun::AFDBCSPL"
+long_args="origin:,substi:,force,test,quiet,verbose,lower,upper,
+           number::,nbegin:,nstep:,nwidth:,
+           all,file,dir,block,char,socket,pipe,link,
+           help,version,example,return-code"
+# store all the arguments in $ARGS
+ARGS=$(getopt -o "$short_args" -l "$long_args" -- "$@")
+if [[ $? -ne 0 ]]; then     # error
+    print_error 'argument error, try "rn --help" for help information'
+    exit 1
+fi
+# store $ARGS to $1, $2, ...
+eval set -- "${ARGS}"
+
+##=============================================================================
+## get the option arguments  
+# if the only part is --, no argument means help
+if [[ $# -eq 1 ]]; then     
+    HELP="yes"
+fi
+
+MSGLEVEL=1      # message level: 0 for quiet, 1 for normal, 2 for verbose
+
+while true; do
+    case "$1" in
+        -o|--origin) ORIGIN="$2"; shift 2 ;;
+        -s|--substi) SUBSTI="$2"; shift 2 ;;
+        -f|--force) FORCE="yes"; shift ;;
+        -t|--test) TEST="yes"; shift ;;
+        -q|--quiet) MSGLEVEL=0; shift ;;
+        -v|--verbose) MSGLEVEL=2; shift ;;
+        -l|-lower) LOWER="yes"; unset UPPER; shift ;;
+        -u|--upper) UPPER="yes"; unset LOWER; shift ;;
+        -n|--number)
+            case "$2" in
+                "") NUMBER="#" ;;
+                *) NUMBER="$2" ;;
+            esac
+            shift 2 ;;
+        --nbegin) NBEGIN="$2"; shift 2 ;;
+        --nstep) NSTEP="$2"; shift 2 ;;
+        --nwidth) NWIDTH="$2"; shift 2 ;;
+        -A|--all) ALL="yes"; shift ;;
+        -F|--file) FILE="yes"; shift ;;
+        -D|--dir) DIR="yes"; shift ;;
+        -B|--block) BLOCK="yes"; shift ;;
+        -C|--char) CHAR="yes"; shift ;;
+        -S|--socket) SOCKET="yes"; shift ;;
+        -P|--pipe) PIPE="yes"; shift ;;
+        -L|--link) LINK="yes"; shift ;;
+        --help) HELP="yes"; shift ;;
+        --version) VERSION="yes"; shift ;;
+        --example) EXAMPLE="yes"; shift ;;
+        --return-code) RETURNCODE="yes"; shift ;;
+        --) 
+            shift; NAMES="$@"; break ;;
+        *) 
+            print_error 'internal error, parsing arguments failed'
+            exit 2 ;;
+    esac
+done
+
+# file type check
+if [[ -z $FILE && -z $DIR && -z $BLOCK && -z $CHAR &&\
+      -z $SOCKET && -z $PIPE && -z $LINK ]]; then
+    ALL="yes"
+fi
+
+# names check, if empty, get all items in pwd
+if [[ -z $NAMES ]]; then
+    NAMES=$(/bin/ls -A1)
+fi
+
+##=============================================================================
+# show help
+if [[ $HELP ]]; then
+    print_help
+    exit 0
+fi
+# show version
+if [[ $VERSION ]]; then
+    print_version
+    exit 0
+fi
+# show example
+if [[ $EXAMPLE ]]; then
+    print_example
+    exit 0
+fi
+# show return code
+if [[ $RETURNCODE ]]; then
+    print_return_code
+    exit 0
+fi
+
+##=============================================================================
+# origin and substitute check
+if [[ -n $ORIGIN && -n $SUBSTI ]]; then
+    USESED="yes"    # use "sed" to substitute the origin
+elif [[ -z $ORIGIN && -z $SUBSTI ]]; then
+    unset USESED    # no substitution
+else
+    print_error 'invalid "origin" and "substitute"'
+    exit 3
+fi
+
+##=============================================================================
+## serial number setting
+if [[ $NUMBER ]]; then
+    NBEGIN=${NBEGIN:-1}     # default 1
+    number_check $NBEGIN
+    if [[ $? -ne 0 ]]; then
+        print_error 'parameter for option --nbegin is not a number.'
+        exit 4
+    fi
+    NSTEP=${NSTEP:-1}       # default 1
+    number_check $NSTEP
+    if [[ $? -ne 0 ]]; then
+        print_error 'parameter for option --nstep is not a number.'
+        exit 4
+    fi
+    NWIDTH=${NWIDTH:-2}     # default 2
+    number_check $NWIDTH
+    if [[ $? -ne 0 ]]; then
+        print_error 'parameter for option --nwidth is not a number.'
+        exit 4
+    fi
+else
+    unset NBEGIN
+    unset NSTEP
+    unset NWIDTH
+fi
+
+##=============================================================================
+##=============================================================================
+# save default IFS and set new IFS
+OLDIFS="$IFS"
+IFS=$'\n'       # in case that space is part of the filename
+
+## renaming proess
+for old_name in  ${NAMES} ; do    ### NOTE: $NAMES cannot be quoted, 
+                                  ###   or it will be treated as one item
+    # existence check
+    if [[ ! -e "$old_name" ]]; then
+        [[ $MSGLEVEL -ge 1 ]] && echo "\"$old_name\" not found"
+        continue
+    fi
+
+    # file type check
+    if [[ -z "$ALL" ]]; then
+        if [[ -f "$old_name" ]] && [[ -z $FILE ]]; then
+            [[ $MSGLEVEL -ge 2 ]] && echo "skip file \"$old_name\""
+            continue
+        fi
+        if [[ -d "$old_name" ]] && [[ -z $DIR ]]; then
+            [[ $MSGLEVEL -ge 2  ]] && echo "skip dir \"$old_name\""
+            continue
+        fi
+        if [[ -b "$old_name" ]] && [[ -z $BLOCK ]]; then
+            [[ $MSGLEVEL -ge 2  ]] && echo "skip block device \"$old_name\""
+            continue
+        fi
+        if [[ -c "$old_name" ]] && [[ -z $CHAR ]]; then
+            [[ $MSGLEVEL -ge 2  ]] && echo "skip character device \"$old_name\""
+            continue
+        fi
+        if [[ -S "$old_name" ]] && [[ -z $SOCKET ]]; then
+            [[ $MSGLEVEL -ge 2  ]] && echo "skip socket file \"$old_name\""
+            continue
+        fi
+        if [[ -p "$old_name" ]] && [[ -z $PIPE ]]; then
+            [[ $MSGLEVEL -ge 2  ]] && echo "skip pipe file \"$old_name\""
+            continue
+        fi
+        if [[ -L "$old_name" ]] && [[ -z $LINK ]]; then
+            [[ $MSGLEVEL -ge 2  ]] && echo "skip link file \"$old_name\""
+            continue
+        fi
+    fi
+
+    # name substitution
+    if [[ $USESED ]]; then
+        new_name=$(echo "$old_name" | sed "s/$ORIGIN/$SUBSTI/g")
+        if [[ $? -ne 0 ]]; then
+            print_error 'invalid "origin" and "substitute"'
+            exit 3
+        fi
+    else
+        new_name="$old_name"
+    fi
+
+    # case check
+    if [[ $UPPER ]]; then
+        new_name=${new_name^^}
+    elif [[ $LOWER ]]; then
+        new_name=${new_name,,}
+    fi
+
+    # serial number
+    if [[ $NUMBER ]]; then
+        number=$(printf "%0${NWIDTH}d" $NBEGIN)
+        if [[ $USESED ]]; then
+            new_name=${new_name//"$NUMBER"/"$number"}
+        else
+            new_name="${number}${new_name}"
+        fi
+        NBEGIN=$((NBEGIN + NSTEP))
+    fi
+
+    # no renaming if the name doesn't change
+    if [[ "$old_name" = "$new_name" ]]; then
+        [[ $NUMBER ]] && NBEGIN=$((NBEGIN - NSTEP))
+        continue
+    fi
+
+    # print information
+    if [[ $MSGLEVEL -ge 1 ]]; then
+        cecho "rn: " skyblue;
+        print_filename "$old_name"
+        cecho " --> " skyblue; 
+        print_filename "$new_name"
+    fi
+
+    # rename
+    if [[ $TEST ]]; then    # no real action
+        echo
+        continue
+    else                    # rename
+        # target existence check
+        if [[ -e "$new_name" ]]; then 
+            # dir -- non-dir check
+            if [[ (-d "$old_name") && (! -d "$new_name") ]]; then
+                [[ $MSGLEVEL -ge 1 ]] && cecho "\tdir -> non-dir failure\n" red
+                [[ $NUMBER ]] && NBEGIN=$((NBEGIN - NSTEP))
+                continue
+            elif [[ (! -d "$old_name") && (-d "$new_name") ]]; then
+                [[ $MSGLEVEL -ge 1 ]] && cecho "\tnon-dir -> dir failure\n" red
+                [[ $NUMBER ]] && NBEGIN=$((NBEGIN - NSTEP))
+                continue
+            fi
+            # force or prompt
+            if [[ $FORCE ]]; then           # force mode
+                [[ $MSGLEVEL -ge 2 ]] && cecho "\toverwrite" skyblue
+                [[ $MSGLEVEL -ge 1 ]] && echo -ne "\t"
+                mv "$old_name" "$new_name"
+            else                            # prompt user to decide
+                echo -ne "\toverwirte? (y/n): "
+                read yes_no
+                if [[ $yes_no = 'y' ]]; then
+                    mv "$old_name" "$new_name"
+                else
+                    [[ $MSGLEVEL -ge 1 ]] && cecho "cancelled\n" purple
+                    continue
+                fi
+            fi
+        else
+            echo -ne "\t"
+            mv "$old_name" "$new_name"
+        fi
+        # status check
+        if [[ $? -eq 0 ]]; then
+            [[ $MSGLEVEL -ge 1 ]] && cecho "OK\n" purple
+        else
+            [[ $MSGLEVEL -ge 1 ]] && cecho "failed\n" red
+        fi
+    fi
+
+done
+
+
+# get back default IFS
+IFS="$OLDIFS"
+
+##=============================================================================
+##=============================================================================
+## THE END
