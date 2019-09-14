@@ -4,16 +4,21 @@
 #
 #   Author  : Boyu Mi
 #   E-mail  : miboyu@yeah.net
-#   Date    : 2019/09/13
-#   Version : 1.0.1
+#   Date    : 2019/09/14
+#   Version : 1.0.2
 #   
 #   Change Log:
+#       1.0.2 (2019/09/14)
+#           Change to extended regex "sed -E ...".
+#           Support more escape characters \d \D etc.
+#           Add option --regex to show quick reference of regex.
+#
 #       1.0.1 (2019/09/13)
-#           fix some bugs
-#           add more verbose information
+#           Fix some bugs.
+#           Add more verbose information.
 #
 #       1.0.0 (2019/09/12)
-#           initial version
+#           Initial version.
 #   
 
 ##=============================================================================
@@ -133,6 +138,7 @@ Options:
     -L | --link         symbolic link file will be renamed
          --help         show this help information
          --version      show version information
+         --regex        show quick reference of regex
          --example      show examples
          --return-code  show return codes
 
@@ -173,8 +179,67 @@ Any bugs, questions, or suggestions, please contact Boyu Mi(miboyu@yeah.net).
 ##=============================================================================
 function print_version()
 {
-    echo 'rn 1.0.1 (2019/09/13)
+    echo 'rn 1.0.2 (2019/09/14)
 Copyright (c) 2019 Boyu Mi(miboyu@yeah.net)
+'
+}
+
+##=============================================================================
+function print_regex()
+{
+    echo 'Quick reference for regular expression:
+
+  ===========   ================================================
+    MetaChar    Meaning
+  -----------   ------------------------------------------------
+       \        escape character
+  -----------   ------------------------------------------------
+       .        match any character except \n
+      []        match any character in []
+      [-]       match any character in [], range form
+      [^]       match any character not in [^]
+  -----------   ------------------------------------------------
+       ?        repeat 0 or once
+       +        repeat once or more times
+       *        repeat 0 or more times
+      {n}       repeat n times
+      {n,}      repeat n or more times
+      {n,m}     repeat n to m times
+      {,m}      repeat 0 to m times
+  -----------   ------------------------------------------------
+       |        left side or right side
+      ()        group
+      \1        the 1st captured group, there are also \2, \3...
+  -----------   ------------------------------------------------
+       ^        anchor head of a line
+       $        anchor tail of a line
+      \<        anchor head boundary of a word
+      \>        anchor tail boundary of a word
+      \b        anchor word boundary
+      \B        anchor non word boundary
+  -----------   ------------------------------------------------
+  [[:digit:]]   any digit number
+  [[:alnum:]]   any letter or number
+  [[:alpha:]]   any letter
+  [[:lower:]]   any lowercase letter
+  [[:upper:]]   any uppercase letter
+  [[:punct:]]   any punctuation
+  [[:graph:]]   any graphical character
+  [[:space:]]   any space character
+  -----------   ------------------------------------------------
+      \d        the same as [[:digit:]]
+      \D        the same as [^[:digit:]]
+      \a        the same as [[:alpha:]]
+      \A        the same as [^[:alpha:]]
+      \l        the same as [[:lower:]]
+      \L        the same as [^[:lower]]
+      \u        the same as [[:upper:]]
+      \U        the same as [^[:upper:]]
+      \s        the same as [[:space:]]
+      \S        the same as [^[:space:]]
+      \w        the same as [_[:alnum:]]
+      \W        the same as [^_[:alnum:]]
+  ===========   ================================================
 '
 }
 
@@ -199,6 +264,9 @@ For example, "a.jpg" "b.jpg" will become "a-01.jpg" "b-02.jpg"
 # 5.Remove a certain part in filenames
         $ rn -o "-.." -s ""
 For example, "a-01.jpg" "b-02.jpg" will become "a.jpg" "b.jpg"
+
+# 6.Add "-" between a letter and a number
+        $ rn -o "(\a)(\d)" -s "\1-\2"
 '
 }
 
@@ -224,7 +292,7 @@ short_args="o:s:pftrqvlun::AFDBCSPL"
 long_args="origin:,substi:,space,force,test,run,quiet,verbose,lower,upper,
            number::,nbegin:,nstep:,nwidth:,
            all,file,dir,block,char,socket,pipe,link,
-           help,version,example,return-code"
+           help,version,regex,example,return-code"
 
 # store all the arguments in $ARGS
 ARGS=$(getopt -o "$short_args" -l "$long_args" -- "$@")
@@ -279,6 +347,7 @@ while true; do
         -L|--link) LINK="yes"; shift ;;
         --help) HELP="yes"; shift ;;
         --version) VERSION="yes"; shift ;;
+        --regex) REGEX="yes"; shift ;;
         --example) EXAMPLE="yes"; shift ;;
         --return-code) RETURNCODE="yes"; shift ;;
         --) 
@@ -302,6 +371,12 @@ if [[ $VERSION ]]; then
     exit 0
 fi
 
+# show regex
+if [[ $REGEX ]]; then
+    print_regex
+    exit 0
+fi
+
 # show example
 if [[ $EXAMPLE ]]; then
     print_example
@@ -319,6 +394,15 @@ fi
 if [[ $ORIGIN || $SUBSTI ]]; then
     [[ $MSGLEVEL -ge 2 ]] && \
         print_verbose "user defined substitution: " "\"$ORIGIN\" --> \"$SUBSTI\""
+    # the following escape characters are not supported in "sed"
+    ORIGIN=${ORIGIN//\\d/[[:digit:]]}         # \d for digit numbers
+    ORIGIN=${ORIGIN//\\D/[^[:digit:]]}        # \D for non digit numbers
+    ORIGIN=${ORIGIN//\\u/[[:upper:]]}         # \u for uppercase letters
+    ORIGIN=${ORIGIN//\\U/[^[:upper:]]}        # \U for non uppercase letters
+    ORIGIN=${ORIGIN//\\l/[[:lower:]]}         # \l for lowercase letters
+    ORIGIN=${ORIGIN//\\L/[^[:lower:]]}        # \L for non lowercase letters
+    ORIGIN=${ORIGIN//\\a/[[:alpha:]]}         # \a for letters
+    ORIGIN=${ORIGIN//\\A/[^[:alpha:]]}        # \A for non letters
     USESED="yes"    # use "sed" to substitute the origin
 else 
     [[ $MSGLEVEL -ge 2 ]] && \
@@ -474,7 +558,7 @@ for old_name in  ${FILES} ; do    ### NOTE: $FILES cannot be quoted,
 
     # name substitution
     if [[ $USESED ]]; then
-        new_filename=$(echo "$old_filename" | sed "s/$ORIGIN/$SUBSTI/g")
+        new_filename=$(echo "$old_filename" | sed -E "s/$ORIGIN/$SUBSTI/g")
         if [[ $? -ne 0 ]]; then
             print_error 'invalid "origin" and "substitute"'
             exit 3
