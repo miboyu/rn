@@ -1,7 +1,8 @@
 # Rename files with regex.
 
-************
-###***Contents:***
+---------------
+***Contents:***
+
 > *[1. Introduction](#1)* <br> 
 > *[2. Examples](#2)* <br> 
 > *[3. Install](#3)* <br>
@@ -129,11 +130,11 @@ This bash script is under license of GPLv3.
 
 ---------------
 <h2 id="6">6.TODO</h2>
-- Write renaming log, and add option --roll-back to roll back from the log.
+- Write renaming log, and add option --roll-back to roll back from the log. <br>
 - Add more examples.
 
 --------------
-<h3 id="7">Author  : Boyu Mi (miboyu@yeah.net)</h3>
+<h3 id="7">Author: Boyu Mi (miboyu@yeah.net)</h3>
 
 Thanks for using the script. If you feel good about it, a recommemdation to your friends will be appreciated. Any bugs or suggestions, please contact the author (_miboyu@yeah.net_). Your feedback will help improving the script ^o^
 
