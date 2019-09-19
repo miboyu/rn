@@ -2,22 +2,16 @@
 
 ************
 ###***Contents:***
-> *[1. Introduction](#1.Introduction)* 
-> 
-> *[2. Examples](#2.Examples)*
-> 
-> *[3. Install](#3.Install)*
-> 
-> *[4. Change Log](#4.Change)*
-> 
-> *[5. License](#5.License)*
-> 
-> *[6. TODO](#6.TODO)*
-> 
-> *[Author](#Author)*
+> *[1. Introduction](#1)* <br> 
+> *[2. Examples](#2)* <br> 
+> *[3. Install](#3)* <br>
+> *[4. Change Log](#4)* <br>
+> *[5. License](#5)* <br> 
+> *[6. TODO](#6)* <br> 
+> *[7. Author](#7)*
 
 ---------------
-## 1.Introduction
+<h2 id="1">1.Introduction</h2>
 
 Use extented regular expression to rename files. If the "*origin*" and "*substitute*" are not given, you can still change the letter case and/or add serial number at the beginning of the filename.
 
@@ -68,7 +62,7 @@ Some options might conflict, like --test & --run, --quiet & --verbose, --lower &
 The file type options (-FDBCSPL) are used to filter unexpected files. It can also be finished in argument "*files*" before passing in. If no file type option is given, the default types (file, dir, and link) are used.
 
 -----------
-## 2.Examples
+<h2 id="2">2.Examples</h2>
 
 #### Example 1: Add "-" between "*year*" "*month*" and "*day*" in filenames
 
@@ -102,7 +96,7 @@ The file type options (-FDBCSPL) are used to filter unexpected files. It can als
 ![](example/rn-2.png)
 
 --------------
-## 3.Install
+<h2 id="3">3.Install</h2>
 
     git clone https://github.com/miboyu/rn
     (or git clone https://gitee.com/miboyu/rn)
@@ -110,7 +104,7 @@ The file type options (-FDBCSPL) are used to filter unexpected files. It can als
     make install
 
 --------------
-## 4.Change Log
+<h2 id="4">4.Change Log</h2>
 
     1.0.3 (2019/09/19)
         Make the prompted command name dynamic.
@@ -129,17 +123,17 @@ The file type options (-FDBCSPL) are used to filter unexpected files. It can als
         Initial version.
 
 --------------
-## 5.License
+<h2 id="5">5.License</h2>
 
 This bash script is under license of GPLv3.
 
 ---------------
-## 6.TODO
+<h2 id="6">6.TODO</h2>
 - Write renaming log, and add option --roll-back to roll back from the log.
 - Add more examples.
 
 --------------
-### **Author  : Boyu Mi (miboyu@yeah.net)**
+<h3 id="7">Author  : Boyu Mi (miboyu@yeah.net)</h3>
 
 Thanks for using the script. If you feel good about it, a recommemdation to your friends will be appreciated. Any bugs or suggestions, please contact the author (_miboyu@yeah.net_). Your feedback will help improving the script ^o^
 
