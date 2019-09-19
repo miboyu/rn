@@ -1,6 +1,19 @@
 # Rename files with regex.
 
-Use extented regular expression to rename files. If the "origin" and "substitute" are not given, you can still change the letter case and/or add serial number at the beginning of the filename.
+************
+###***Contents:***
+*[1. Introduction](#Introduction)*
+*[2. Examples](#Examples)*
+*[3. Install](#Install)*
+*[4. Change Log](#Change Log)*
+*[5. License](#License)*
+*[6. Todo](#TODO)*
+*[7. Author](#Author)*
+
+---------------
+## 1.Introduction
+
+Use extented regular expression to rename files. If the "*origin*" and "*substitute*" are not given, you can still change the letter case and/or add serial number at the beginning of the filename.
 
     Usage:
         rn [options] [-o origin -s substitute] [files]
@@ -36,7 +49,7 @@ Use extented regular expression to rename files. If the "origin" and "substitute
              --example      show examples
              --return-code  show return codes
 
-The "*origin*" and "*substitute*" should be given at the same time for command "**sed**" to do the substitution. If both were omitted, option --lower and --upper can be used to transform letter case of the "files", and option --number (together with number settings --nbegin, --nstep, and --nwidth) can be used to add serial number to the front of the "*files*".
+The "*origin*" and "*substitute*" should be given at the same time for command "**sed**" to do the substitution. If both were omitted, option --lower and --upper can be used to transform letter case of the "*files*", and option --number (together with number settings --nbegin, --nstep, and --nwidth) can be used to add serial number to the front of the "*files*".
 
 If the "*files*" is omitted, the results of command "**ls**" is used. If there are spaces in filenames, use option --space, and each filename should occupy one line for the space " " cannot be used as Internal Field Separator (IFS) anymore. If the "*files*" has parent path (contains "/"s), only the filename part would be renamed, and the filename part could be file, dir, and so on.
 
@@ -46,9 +59,11 @@ Quiet mode will print no information except for the error messages. Verbose mode
 
 Some options might conflict, like --test & --run, --quiet & --verbose, --lower & --upper, only the last one takes effect. For example, "**rn -u -l**" means "**to lower case**"
 
-The file type options (-FDBCSPL) are used to filter unexpected files. It can also be completed in argument "*files*" before passing in. If no file type option is given, the default types (file, dir, and link) are used.
+The file type options (-FDBCSPL) are used to filter unexpected files. It can also be finished in argument "*files*" before passing in. If no file type option is given, the default types (file, dir, and link) are used.
 
 -----------
+## 2.Examples
+
 #### Example 1: Add "-" between "*year*" "*month*" and "*day*" in filenames
 
 - Files at the beginning 
@@ -81,7 +96,19 @@ The file type options (-FDBCSPL) are used to filter unexpected files. It can als
 ![](example/rn-2.png)
 
 --------------
-## Change Log:
+## 3.Install
+
+    git clone https://github.com/miboyu/rn
+    (or git clone https://gitee.com/miboyu/rn)
+    cd rn
+    make install
+
+--------------
+## 4.Change Log
+
+    1.0.3 (2019/09/19)
+        Make the prompted command name dynamic.
+        Add "makefile" to install the command.
 
     1.0.2 (2019/09/14)
         Change to extended regex "sed -E ...".
@@ -95,14 +122,19 @@ The file type options (-FDBCSPL) are used to filter unexpected files. It can als
     1.0.0 (2019/09/12)
         Initial version.
 
+--------------
+## 5.License
+
+This bash script is under license of GPLv3.
+
 ---------------
-## TODO: 
+## 6.TODO
 - Write renaming log, and add option --roll-back to roll back from the log.
 - Add more examples.
 
 --------------
 ### **Author  : Boyu Mi (miboyu@yeah.net)**
 
-Thanks for using the script. If you feel good about it, a recommemdation to your friends will be appreciated. Any bugs or suggestions, please contact the author (_miboyu@yeah.net_). Your feedback will help improving the script.
+Thanks for using the script. If you feel good about it, a recommemdation to your friends will be appreciated. Any bugs or suggestions, please contact the author (_miboyu@yeah.net_). Your feedback will help improving the script ^o^
 
 --------------
