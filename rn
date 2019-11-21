@@ -19,10 +19,14 @@
 #
 #   Author  : Boyu Mi
 #   E-mail  : miboyu@yeah.net
-#   Date    : 2019/09/19
-#   Version : 1.0.3
+#   Date    : 2019/11/21
+#   Version : 1.0.4
 #   
 #   Change Log:
+#       1.0.4 (2019/11/21)
+#           Fix the filename-with-space problem, see help for details.
+#           Remove "--space" option.
+#
 #       1.0.3 (2019/09/19)
 #           Make the prompted command name dynamic.
 #           Add "makefile" to install the command.
@@ -129,12 +133,14 @@ function print_help()
     echo "Rename files with regex.
 
 Usage:
-    $rn [options] [-o origin -s substitute] [files]
+    $rn [<options>] [-o <origin> -s <substitute>] [<files>]
+
+        [...] means optional part
+        <...> means user specified value
 
 Options:
     -o | --origin ptn   the original name pattern (support regex)
     -s | --substi ptn   the substitutional name pattern (support regex)
-    -p | --space        filename contains space
     -f | --force        force mode, overwrite existing target
     -t | --test         test mode, show the results without real action 
     -r | --run          run mode, execute the renaming process
@@ -162,17 +168,18 @@ Options:
          --example      show examples
          --return-code  show return codes
 
-The 'origin' and 'substitute' should be given at the same time for command 'sed'
+The <origin> and <substitute> should be given at the same time for command 'sed'
 to do the substitution. If both were omitted, option --lower and --upper can be 
-used to transform letter case of the 'files', and option --number (together with 
+used to transform letter case of the <files>, and option --number (together with 
 number settings --nbegin, --nstep, and --nwidth) can be used to add serial 
-number to the front of the 'files'.
+number to the front of the <files>.
 
-If the 'files' is omitted, the results of command 'ls' is used. If there are 
-spaces in filenames, use option --space, and each filename should occupy one 
-line for the space ' ' cannot be used as Internal Field Separator (IFS) anymore.
-If the 'files' has parent path (contains '/'s), only the filename part would be
-renamed, and the filename part could be file, dir, and so on.
+Wildcards are supported in <files>. But if there are spaces in filenames, the
+<files> with wildcards should be quoted in '' or \"\". If <files> is omitted,
+it is the same as '*', which means all files in current working directory. 
+If the <files> has parent path (contains '/'s), only the filename part would be
+renamed, leaving parent path unchanged, and the filename part could be file, 
+dir, and so on.
 
 Test mode is a good way to examine the renaming effect. The following alias is 
 strongly suggested to avoid mistakes since there is no roll-back option yet.
@@ -189,7 +196,7 @@ Some options might conflict, like --test & --run, --quiet & --verbose, --lower
 lower case'.
 
 The file type options (-FDBCSPL) are used to filter unexpected files. It can
-also be accomplished by user in argument 'files' before passing it in. If no 
+also be accomplished by user in argument <files> before passing it in. If no 
 file type option is given, the default types (file, dir, and link) are used.
 
 Any bugs, questions, or suggestions, please contact Boyu Mi(miboyu@yeah.net).
@@ -199,7 +206,7 @@ Any bugs, questions, or suggestions, please contact Boyu Mi(miboyu@yeah.net).
 ##=============================================================================
 function print_version()
 {
-    echo "${0##*/} 1.0.3 (2019/09/19)
+    echo "${0##*/} 1.0.4 (2019/11/21)
 Copyright (c) 2019 Boyu Mi(miboyu@yeah.net)
 "
 }
@@ -268,27 +275,34 @@ function print_example()
 {
     rn=${0##*/}
     echo "Examples:
-# 1.Change all the filenames at pwd to UPPER CASE
-        $ $rn -u
 
-# 2.Change the names of .txt files to lower case
-        $ $rn -l *.txt
+# 1 ...>$ $rn -u
+Change all the filenames at pwd to UPPER CASE. Add --force option if the 
+filename is case insensitive (like in Windows).
 
-# 3.Add serial number at the beginning 
-        $ $rn -n *.jpg
-For example, 'a.jpg' 'b.jpg' will become '01a.jpg' '02b.jpg'
+# 2 ...>$ $rn -l *.txt
+Change the names of txt files to lower case.
 
-# 4.Add serial number at given position
-        $ $rn -n -o '\.jpg' -s '-#.jpg' 
-For example, 'a.jpg' 'b.jpg' will become 'a-01.jpg' 'b-02.jpg'
+# 3 ...>$ $rn -n *.jpg
+Add serial number at the beginning of jpg files. For example, 'a.jpg' 'b.jpg' 
+will become '01a.jpg' '02b.jpg'
 
-# 5.Remove a certain part in filenames
-        $ $rn -o '-..' -s ''
-For example, 'a-01.jpg' 'b-02.jpg' will become 'a.jpg' 'b.jpg'
+# 4 ...>$ $rn -n -o '\.jpg' -s '-#.jpg' 
+Add serial number at given position. For example, 'a.jpg' 'b.jpg' will become
+'a-01.jpg' 'b-02.jpg'
 
-# 6.Add '-' between a letter and a number
-        $ $rn -o '(\a)(\d)' -s '\1-\2'
-For example, 'a01.jpg' 'b02.jpg' will become 'a-01.jpg' 'b-02.jpg'
+# 5 ...>$ $rn -o '-..' -s ''
+Remove a certain part in filenames. For example, 'a-01.jpg' 'b-02.jpg' will 
+become 'a.jpg' 'b.jpg'
+
+# 6 ...>$ $rn -o '(\a)(\d)' -s '\1-\2'
+Add '-' between a letter and a number. For example, 'a01.jpg' 'b02.jpg' will 
+become 'a-01.jpg' 'b-02.jpg'
+
+# 7 ...>$ $rn -u '*.jpg'
+Change the names of jpg files to UPPER CASE if some of them contain spaces in
+filenames. For example, 'a.jpg' 'b 2.jpg' will become 'A.JPG' 'B 2.JPG'. If no
+quotation mark is used ($rn -u *.jpg), file 'b 2.jpg' will raise an error.
 "
 }
 
@@ -310,8 +324,8 @@ function print_return_code()
 ## Parsing the command line arguments with "getopt"
 
 # define short arguments and long arguments, see "print_help()"
-short_args="o:s:pftrqvlun::AFDBCSPL"
-long_args="origin:,substi:,space,force,test,run,quiet,verbose,lower,upper,
+short_args="o:s:ftrqvlun::AFDBCSPL"
+long_args="origin:,substi:,force,test,run,quiet,verbose,lower,upper,
            number::,nbegin:,nstep:,nwidth:,
            all,file,dir,block,char,socket,pipe,link,
            help,version,regex,example,return-code"
@@ -344,7 +358,6 @@ while true; do
     case "$1" in
         -o|--origin) ORIGIN="$2"; shift 2 ;;
         -s|--substi) SUBSTI="$2"; shift 2 ;;
-        -p|--space) SPACE="yes"; shift ;;
         -f|--force) FORCE="yes"; shift ;;
         -t|--test) TEST="yes"; shift ;;
         -r|--run) unset TEST; shift ;;
@@ -499,7 +512,8 @@ fi
 ##=============================================================================
 # files check, if empty, get all items in pwd
 if [[ -z $FILES ]]; then
-    FILES=$(\ls -A1)    
+    #FILES=$(\ls -A1)    
+    FILES="*"
     # -A: all but . and ..
     # -1: one item each line, in case that there are spaces in filename
 fi
@@ -507,13 +521,6 @@ fi
 
 ##=============================================================================
 ##=============================================================================
-
-# if space in filename, save default IFS and set new IFS
-if [[ $SPACE ]]; then
-    OLDIFS="$IFS"
-    IFS=$'\n'       # in case that space is part of the filename
-fi
-
 ## renaming process
 for old_name in  ${FILES} ; do    ### NOTE: $FILES cannot be quoted, 
                                   ###   or it will be treated as one item
@@ -681,10 +688,6 @@ for old_name in  ${FILES} ; do    ### NOTE: $FILES cannot be quoted,
     fi
 
 done
-
-if [[ $SPACE ]]; then
-    IFS="$OLDIFS"       # get back default IFS
-fi
 
 ##=============================================================================
 ##=============================================================================
