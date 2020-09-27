@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 #   Function: rename files with regex.
-#   
+#
 #   Copyright (C) <2019>  <Boyu Mi(miboyu@yeah.net)>
 #
 #   This program is free software: you can redistribute it and/or modify
@@ -19,10 +19,14 @@
 #
 #   Author  : Boyu Mi
 #   E-mail  : miboyu@yeah.net
-#   Date    : 2019/11/21
-#   Version : 1.0.4
-#   
+#   Date    : 2020/09/27
+#   Version : 1.0.5
+#
 #   Change Log:
+#       1.0.5 (2020/09/27)
+#           Remove the --origin and --substi options, use position arguments.
+#           Remove --test option, defaulted as test mode.
+#
 #       1.0.4 (2019/11/21)
 #           Fix the filename-with-space problem, see help for details.
 #           Remove "--space" option.
@@ -30,7 +34,7 @@
 #       1.0.3 (2019/09/19)
 #           Make the prompted command name dynamic.
 #           Add "makefile" to install the command.
-#           
+#
 #       1.0.2 (2019/09/14)
 #           Change to extended regex "sed -E ...".
 #           Support more escape characters \d \D etc.
@@ -42,7 +46,7 @@
 #
 #       1.0.0 (2019/09/12)
 #           Initial version.
-#   
+#
 
 ##=============================================================================
 ## FUNCTIONS
@@ -60,8 +64,8 @@ function cecho()
             green) return 2 ;;
             yellow) return 3 ;;
             blue) return 4 ;;
-            purple) return 5 ;;
-            skyblue) return 6 ;;
+            magenta) return 5 ;;
+            cyan) return 6 ;;
             white) return 7;;
             *) return 8 ;;
         esac
@@ -90,7 +94,7 @@ function print_error()
 function print_verbose()
 {
     # print_verbose "head" "tail"
-    cecho "$1" skyblue
+    cecho "$1" cyan
     cecho "$2\n"
 }
 
@@ -102,7 +106,7 @@ function print_filename()
         cecho "$1"              # default for non-existing
     elif [[ -f "$1" ]]; then
         cecho "$1" yellow       # yellow for regular file
-        [[ -x "$1" ]] && cecho "*" yellow 
+        [[ -x "$1" ]] && cecho "*" yellow
     elif [[ -d "$1" ]]; then
         cecho "$1" blue        # blue for directory
         [[ ${1:0-1} != "/" ]] && cecho "/" blue
@@ -111,47 +115,41 @@ function print_filename()
     else
         cecho "$1" red          # red for other types to show warning
         if [[ -p "$1" ]]; then
-            cecho "|" red     
+            cecho "|" red
         elif [[ -S "$1" ]]; then
-            cecho "=" red     
+            cecho "=" red
         fi
     fi
 }
 
 ##=============================================================================
 function number_check()
-{                                
+{
     # check whether the given argument is a number
-    expr $1 + 0 &> /dev/null    
+    expr $1 + 0 &> /dev/null
     return $?
 }
 
 ##=============================================================================
-function print_help() 
+function print_help()
 {
     rn=${0##*/}
     echo "Rename files with regex.
 
 Usage:
-    $rn [<options>] [-o <origin> -s <substitute>] [<files>]
-
-        [...] means optional part
-        <...> means user specified value
+    $rn [<options>] \"<old_pattern>\" \"<new_pattern>\" [<files>]
 
 Options:
-    -o | --origin ptn   the original name pattern (support regex)
-    -s | --substi ptn   the substitutional name pattern (support regex)
-    -f | --force        force mode, overwrite existing target
-    -t | --test         test mode, show the results without real action 
     -r | --run          run mode, execute the renaming process
     -q | --quiet        quiet mode, show least information
     -v | --verbose      verbose mode, show most information
-    -l | --lower        to lower case, use -f if the name is case insensitive
-    -u | --upper        to upper case, use -f if the name is case insensitive
-    -n | --number=[ch]  'ch' will be replaced by a serial number in substitute,
+    -f | --force        force mode, overwrite existing target
+    -l | --lower        to lower case, add -f if the name is case insensitive
+    -u | --upper        to upper case, add -f if the name is case insensitive
+    -n | --number=[ch]  'ch' will be replaced by a serial number in new_pattern,
                         the default 'ch' is '#'
          --nbegin #     beginning number when -n is used, defaulted as 1
-         --nstep #      step number when -n is used, defaulted as 1 
+         --nstep #      step number when -n is used, defaulted as 1
          --nwidth #     least width of the serial number when -n is used,
                         defaulted as 2 (eg: 1 will be 01)
     -A | --all          all types of file will be renamed
@@ -168,35 +166,25 @@ Options:
          --example      show examples
          --return-code  show return codes
 
-The <origin> and <substitute> should be given at the same time for command 'sed'
-to do the substitution. If both were omitted, option --lower and --upper can be 
-used to transform letter case of the <files>, and option --number (together with 
-number settings --nbegin, --nstep, and --nwidth) can be used to add serial 
-number to the front of the <files>.
+The command runs in TEST mode by default, add --run option to take effects.
 
-Wildcards are supported in <files>. But if there are spaces in filenames, the
+Wildcards(*?) are supported in <files>. If there are spaces in filenames, the
 <files> with wildcards should be quoted in '' or \"\". If <files> is omitted,
-it is the same as '*', which means all files in current working directory. 
-If the <files> has parent path (contains '/'s), only the filename part would be
-renamed, leaving parent path unchanged, and the filename part could be file, 
-dir, and so on.
-
-Test mode is a good way to examine the renaming effect. The following alias is 
-strongly suggested to avoid mistakes since there is no roll-back option yet.
-        alias $rn='$rn -t'
-Once it might work right, option --run could be added to start the operation.
+it is the same as '*', which means all files in current working directory.
+If the <files> has parent path (contains '/'s), only the last part would be
+renamed, leaving parent path unchanged, and the last part could be file, dir,
+and so on.
 
 Quiet mode will print no information except for the error messages. Verbose mode
 will print as much information as possible, which can be used to check the inner
-status. If there is no --quiet or --verbose option, the normal mode will only 
+status. If there is no --quiet or --verbose option, the normal mode will only
 print necessary information.
 
-Some options might conflict, like --test & --run, --quiet & --verbose, --lower
-& --upper, only the last one takes effect. For example, '$rn -u -l' means 'to
-lower case'.
+Some options might conflict, like --quiet & --verbose, --lower & --upper, only
+the last one takes effect. For example, '$rn -u -l' means 'to lower case'.
 
 The file type options (-FDBCSPL) are used to filter unexpected files. It can
-also be accomplished by user in argument <files> before passing it in. If no 
+also be accomplished by user in argument <files> before passing it in. If no
 file type option is given, the default types (file, dir, and link) are used.
 
 Any bugs, questions, or suggestions, please contact Boyu Mi(miboyu@yeah.net).
@@ -206,7 +194,7 @@ Any bugs, questions, or suggestions, please contact Boyu Mi(miboyu@yeah.net).
 ##=============================================================================
 function print_version()
 {
-    echo "${0##*/} 1.0.4 (2019/11/21)
+    echo "${0##*/} 1.0.5 (2020/09/27)
 Copyright (c) 2019 Boyu Mi(miboyu@yeah.net)
 "
 }
@@ -222,9 +210,9 @@ function print_regex()
        \        escape character
   -----------   ------------------------------------------------
        .        match any character except \n
-      []        match any character in []
-      [-]       match any character in [], range form
-      [^]       match any character not in [^]
+     [abc]      match any character in []
+     [a-c]      match any character in [], range form
+     [^a-c]     match any character not in []
   -----------   ------------------------------------------------
        ?        repeat 0 or once
        +        repeat once or more times
@@ -277,32 +265,27 @@ function print_example()
     echo "Examples:
 
 # 1 ...>$ $rn -u
-Change all the filenames at pwd to UPPER CASE. Add --force option if the 
+Change all the filenames at pwd to UPPER CASE. Add --force option if the
 filename is case insensitive (like in Windows).
 
-# 2 ...>$ $rn -l *.txt
+# 2 ...>$ $rn -l '' '' '*.txt'
 Change the names of txt files to lower case.
 
-# 3 ...>$ $rn -n *.jpg
-Add serial number at the beginning of jpg files. For example, 'a.jpg' 'b.jpg' 
+# 3 ...>$ $rn -n '' '' '*.jpg'
+Add serial number at the beginning of jpg files. For example, 'a.jpg' 'b.jpg'
 will become '01a.jpg' '02b.jpg'
 
-# 4 ...>$ $rn -n -o '\.jpg' -s '-#.jpg' 
+# 4 ...>$ $rn -n '\.jpg' '-#.jpg'
 Add serial number at given position. For example, 'a.jpg' 'b.jpg' will become
 'a-01.jpg' 'b-02.jpg'
 
-# 5 ...>$ $rn -o '-..' -s ''
-Remove a certain part in filenames. For example, 'a-01.jpg' 'b-02.jpg' will 
+# 5 ...>$ $rn '-..' ''
+Remove a certain part in filenames. For example, 'a-01.jpg' 'b-02.jpg' will
 become 'a.jpg' 'b.jpg'
 
-# 6 ...>$ $rn -o '(\a)(\d)' -s '\1-\2'
-Add '-' between a letter and a number. For example, 'a01.jpg' 'b02.jpg' will 
+# 6 ...>$ $rn '(\a)(\d)' '\1-\2'
+Add '-' between a letter and a number. For example, 'a01.jpg' 'b02.jpg' will
 become 'a-01.jpg' 'b-02.jpg'
-
-# 7 ...>$ $rn -u '*.jpg'
-Change the names of jpg files to UPPER CASE if some of them contain spaces in
-filenames. For example, 'a.jpg' 'b 2.jpg' will become 'A.JPG' 'B 2.JPG'. If no
-quotation mark is used ($rn -u *.jpg), file 'b 2.jpg' will raise an error.
 "
 }
 
@@ -313,7 +296,7 @@ function print_return_code()
     0   Success
     1   Argument error
     2   Internal error
-    3   Invalid 'origin' and 'substitute'
+    3   Invalid 'old_pattern' and 'new_pattern'
     4   Parameter type error
 "
 }
@@ -324,8 +307,8 @@ function print_return_code()
 ## Parsing the command line arguments with "getopt"
 
 # define short arguments and long arguments, see "print_help()"
-short_args="o:s:ftrqvlun::AFDBCSPL"
-long_args="origin:,substi:,force,test,run,quiet,verbose,lower,upper,
+short_args="rqvflun::AFDBCSPL"
+long_args="run,quiet,verbose,force,lower,upper,
            number::,nbegin:,nstep:,nwidth:,
            all,file,dir,block,char,socket,pipe,link,
            help,version,regex,example,return-code"
@@ -343,26 +326,25 @@ fi
 eval set -- "${ARGS}"
 
 ##=============================================================================
-## Get the options and/or parameters  
+## Get the options and/or parameters
 
 # if the only part is --, no argument means help
-if [[ $# -eq 1 ]]; then     
+if [[ $# -eq 1 ]]; then
     HELP="yes"
 fi
 
 # message level: 0 for quiet, 1 for normal, 2 for verbose
-MSGLEVEL=1      
+MSGLEVEL=1
+# TEST mode as default
+TEST="yes"
 
 # traverse the $ARGS
 while true; do
     case "$1" in
-        -o|--origin) ORIGIN="$2"; shift 2 ;;
-        -s|--substi) SUBSTI="$2"; shift 2 ;;
-        -f|--force) FORCE="yes"; shift ;;
-        -t|--test) TEST="yes"; shift ;;
         -r|--run) unset TEST; shift ;;
         -q|--quiet) MSGLEVEL=0; shift ;;
         -v|--verbose) MSGLEVEL=2; shift ;;
+        -f|--force) FORCE="yes"; shift ;;
         -l|-lower) LOWER="yes"; unset UPPER; shift ;;
         -u|--upper) UPPER="yes"; unset LOWER; shift ;;
         -n|--number)
@@ -387,9 +369,12 @@ while true; do
         --regex) REGEX="yes"; shift ;;
         --example) EXAMPLE="yes"; shift ;;
         --return-code) RETURNCODE="yes"; shift ;;
-        --) 
-            shift; FILES="$@"; break ;;
-        *) 
+        --)
+            shift;
+            if [[ -n $1 ]]; then OLD="$1"; shift; fi
+            if [[ -n $1 ]]; then NEW="$1"; shift; fi
+            FILES="$@"; break ;;
+        *)
             print_error 'internal error, parsing arguments failed'
             exit 2 ;;
     esac
@@ -427,21 +412,21 @@ if [[ $RETURNCODE ]]; then
 fi
 
 ##=============================================================================
-# origin and substitute check
-if [[ $ORIGIN || $SUBSTI ]]; then
+# old_pattern and new_pattern check
+if [[ $OLD || $NEW ]]; then
     [[ $MSGLEVEL -ge 2 ]] && \
-        print_verbose "user defined substitution: " "\"$ORIGIN\" --> \"$SUBSTI\""
+        print_verbose "user defined substitution: " "\"$OLD\" --> \"$NEW\""
     # the following escape characters are not supported in "sed"
-    ORIGIN=${ORIGIN//\\d/[[:digit:]]}         # \d for digit numbers
-    ORIGIN=${ORIGIN//\\D/[^[:digit:]]}        # \D for non digit numbers
-    ORIGIN=${ORIGIN//\\u/[[:upper:]]}         # \u for uppercase letters
-    ORIGIN=${ORIGIN//\\U/[^[:upper:]]}        # \U for non uppercase letters
-    ORIGIN=${ORIGIN//\\l/[[:lower:]]}         # \l for lowercase letters
-    ORIGIN=${ORIGIN//\\L/[^[:lower:]]}        # \L for non lowercase letters
-    ORIGIN=${ORIGIN//\\a/[[:alpha:]]}         # \a for letters
-    ORIGIN=${ORIGIN//\\A/[^[:alpha:]]}        # \A for non letters
-    USESED="yes"    # use "sed" to substitute the origin
-else 
+    OLD=${OLD//\\d/[[:digit:]]}         # \d for digit numbers
+    OLD=${OLD//\\D/[^[:digit:]]}        # \D for non digit numbers
+    OLD=${OLD//\\u/[[:upper:]]}         # \u for uppercase letters
+    OLD=${OLD//\\U/[^[:upper:]]}        # \U for non uppercase letters
+    OLD=${OLD//\\l/[[:lower:]]}         # \l for lowercase letters
+    OLD=${OLD//\\L/[^[:lower:]]}        # \L for non lowercase letters
+    OLD=${OLD//\\a/[[:alpha:]]}         # \a for letters
+    OLD=${OLD//\\A/[^[:alpha:]]}        # \A for non letters
+    USESED="yes"    # use "sed" to new_pattern the old_pattern
+else
     [[ $MSGLEVEL -ge 2 ]] && \
         print_verbose "no user defined substitution pattern"
     unset USESED    # no "sed" substitution
@@ -498,7 +483,7 @@ elif [[ -z $FILE && -z $DIR && -z $BLOCK && -z $CHAR &&\
         print_verbose "renaming file types: " "file dir link"
     FILE="yes"; DIR="yes"; LINK="yes"   # 3 default types
 elif [[ $MSGLEVEL -ge 2 ]]; then
-    cecho "renaming file types: " skyblue
+    cecho "renaming file types: " cyan
     [[ $FILE ]] && cecho "file "
     [[ $DIR ]] && cecho "dir "
     [[ $LINK ]] && cecho "link "
@@ -512,7 +497,7 @@ fi
 ##=============================================================================
 # files check, if empty, get all items in pwd
 if [[ -z $FILES ]]; then
-    #FILES=$(\ls -A1)    
+    #FILES=$(\ls -A1)
     FILES="*"
     # -A: all but . and ..
     # -1: one item each line, in case that there are spaces in filename
@@ -522,7 +507,7 @@ fi
 ##=============================================================================
 ##=============================================================================
 ## renaming process
-for old_name in  ${FILES} ; do    ### NOTE: $FILES cannot be quoted, 
+for old_name in  ${FILES} ; do    ### NOTE: $FILES cannot be quoted,
                                   ###   or it will be treated as one item
     # transform \ to /
     old_name=${old_name//\\/\/}
@@ -541,7 +526,7 @@ for old_name in  ${FILES} ; do    ### NOTE: $FILES cannot be quoted,
         fi
         # get the parent path
         parent=${old_name%/*}   # remove the last / and its right part
-        if [[ "$parent" == "$old_name" ]]; then 
+        if [[ "$parent" == "$old_name" ]]; then
             unset parent            # if there is no parent, unset it
         else
             parent="${parent}/"     # else, add / to the end
@@ -589,16 +574,16 @@ for old_name in  ${FILES} ; do    ### NOTE: $FILES cannot be quoted,
 
     # name substitution
     if [[ $USESED ]]; then
-        new_filename=$(echo "$old_filename" | sed -E "s/$ORIGIN/$SUBSTI/g")
+        new_filename=$(echo "$old_filename" | sed -E "s/$OLD/$NEW/g")
         if [[ $? -ne 0 ]]; then
-            print_error 'invalid "origin" and "substitute"'
+            print_error 'invalid "old_pattern" and "new_pattern"'
             exit 3
         fi
     else
         new_filename="$old_filename"
     fi
 
-    # no user "origin" and "substitute" means rename all
+    # no user "old_pattern" and "new_pattern" means rename all
     # else, only changed filenames would be further renamed
     if [[ -z $USESED || ( "$new_filename" != "$old_filename" ) ]]; then
         # case check
@@ -639,17 +624,17 @@ for old_name in  ${FILES} ; do    ### NOTE: $FILES cannot be quoted,
 
     # print information
     if [[ $MSGLEVEL -ge 1 ]]; then
-        cecho "$rn: " skyblue; print_filename "$old_name"
-        cecho " --> " skyblue; print_filename "$new_name\t"
+        cecho "$rn: " cyan; print_filename "$old_name"
+        cecho " --> " cyan; print_filename "$new_name\t"
     fi
 
     # rename
     if [[ $TEST ]]; then    # no real action
-        [[ $MSGLEVEL -ge 1 ]] && cecho "test\n" skyblue
+        [[ $MSGLEVEL -ge 1 ]] && cecho "test\n" cyan
         continue
     else                    # rename
         # target existence check
-        if [[ -e "$new_name" ]]; then 
+        if [[ -e "$new_name" ]]; then
             # dir -- non-dir check
             if [[ (-d "$old_name") && (! -d "$new_name") ]]; then
                 [[ $MSGLEVEL -ge 1 ]] && cecho "dir -> non-dir failure\n" red
@@ -662,7 +647,7 @@ for old_name in  ${FILES} ; do    ### NOTE: $FILES cannot be quoted,
             fi
             # force or prompt
             if [[ $FORCE ]]; then           # force mode
-                [[ $MSGLEVEL -ge 2 ]] && cecho "overwrite\t" skyblue
+                [[ $MSGLEVEL -ge 2 ]] && cecho "overwrite\t" cyan
                 mv "$old_name" "$new_name"
             else                            # prompt user to decide
                 cecho "overwrite? (y/n): "
@@ -670,18 +655,18 @@ for old_name in  ${FILES} ; do    ### NOTE: $FILES cannot be quoted,
                 if [[ $yes_no == 'y' ]]; then
                     mv "$old_name" "$new_name"
                 else
-                    [[ $MSGLEVEL -ge 1 ]] && cecho "cancelled\n" purple
+                    [[ $MSGLEVEL -ge 1 ]] && cecho "cancelled\n" magenta
                     continue
                 fi
             fi
         # not exist, rename directly
-        else        
+        else
             mv "$old_name" "$new_name"
         fi
 
         # status check
         if [[ $? -eq 0 ]]; then
-            [[ $MSGLEVEL -ge 1 ]] && cecho "OK\n" purple
+            [[ $MSGLEVEL -ge 1 ]] && cecho "OK\n" magenta
         else
             [[ $MSGLEVEL -ge 1 ]] && cecho "failed\n" red
         fi

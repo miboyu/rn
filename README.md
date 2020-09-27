@@ -3,37 +3,33 @@
 ---------------
 ***Contents:***
 
-> *[1. Introduction](#1)* <br> 
-> *[2. Examples](#2)* <br> 
+> *[1. Introduction](#1)* <br>
+> *[2. Examples](#2)* <br>
 > *[3. Install](#3)* <br>
 > *[4. Change Log](#4)* <br>
-> *[5. License](#5)* <br> 
-> *[6. TODO](#6)* <br> 
+> *[5. License](#5)* <br>
+> *[6. TODO](#6)* <br>
 > *[7. Author](#7)*
 
 ---------------
 <h2 id="1">1.Introduction</h2>
 
-Use extented regular expression to rename files. If the "*origin*" and "*substitute*" are not given, you can still change the letter case and/or add serial number at the beginning of the filename.
+Use extended regular expression to rename files.
 
     Usage:
-        rn [options] [-o origin -s substitute] [files]
+        rn [<options>] <old_pattern> <new_pattern> [<files>]
 
     Options:
-        -o | --origin ptn   the original name pattern (support regex)
-        -s | --substi ptn   the substitutional name pattern (support regex)
-        -p | --space        filename contains space
-        -f | --force        force mode, overwrite existing target
-        -t | --test         test mode, show the results without real action 
         -r | --run          run mode, execute the renaming process
         -q | --quiet        quiet mode, show least information
         -v | --verbose      verbose mode, show most information
-        -l | --lower        to lower case, use -f if the name is case insensitive
-        -u | --upper        to upper case, use -f if the name is case insensitive
-        -n | --number=[ch]  "ch" will be replaced by a serial number in substitute,
-                            the default "ch" is "#"
+        -f | --force        force mode, overwrite existing target
+        -l | --lower        to lower case, add -f if the name is case insensitive
+        -u | --upper        to upper case, add -f if the name is case insensitive
+        -n | --number=[ch]  'ch' will be replaced by a serial number in new_pattern,
+                            the default 'ch' is '#'
              --nbegin #     beginning number when -n is used, defaulted as 1
-             --nstep #      step number when -n is used, defaulted as 1 
+             --nstep #      step number when -n is used, defaulted as 1
              --nwidth #     least width of the serial number when -n is used,
                             defaulted as 2 (eg: 1 will be 01)
         -A | --all          all types of file will be renamed
@@ -50,54 +46,29 @@ Use extented regular expression to rename files. If the "*origin*" and "*substit
              --example      show examples
              --return-code  show return codes
 
-The "*origin*" and "*substitute*" should be given at the same time for command "**sed**" to do the substitution. If both were omitted, option --lower and --upper can be used to transform letter case of the "*files*", and option --number (together with number settings --nbegin, --nstep, and --nwidth) can be used to add serial number to the front of the "*files*".
+    The command runs in TEST mode by default, add --run option to take effects.
 
-If the "*files*" is omitted, the results of command "**ls**" is used. If there are spaces in filenames, use option --space, and each filename should occupy one line for the space " " cannot be used as Internal Field Separator (IFS) anymore. If the "*files*" has parent path (contains "/"s), only the filename part would be renamed, and the filename part could be file, dir, and so on.
+    Wildcards(*?) are supported in <files>. If there are spaces in filenames, the
+    <files> with wildcards should be quoted in '' or \"\". If <files> is omitted,
+    it is the same as '*', which means all files in current working directory.
+    If the <files> has parent path (contains '/'s), only the last part would be
+    renamed, leaving parent path unchanged, and the last part could be file, dir,
+    and so on.
 
-Test mode is a good way to examine the renaming effect. The alias (**alias rn="rn -t"**) is strongly suggested to avoid mistakes since there is no roll-back option yet. Once it might work right, option --run could be added to start the operation.
+    Quiet mode will print no information except for the error messages. Verbose mode
+    will print as much information as possible, which can be used to check the inner
+    status. If there is no --quiet or --verbose option, the normal mode will only
+    print necessary information.
 
-Quiet mode will print no information except for the error messages. Verbose mode will print as much information as possible, which can be used to check the inner status. If there is no --quiet or --verbose option, the normal mode only print necessary information.
+    Some options might conflict, like --quiet & --verbose, --lower & --upper, only
+    the last one takes effect. For example, '$rn -u -l' means 'to lower case'.
 
-Some options might conflict, like --test & --run, --quiet & --verbose, --lower & --upper, only the last one takes effect. For example, "**rn -u -l**" means "**to lower case**"
-
-The file type options (-FDBCSPL) are used to filter unexpected files. It can also be finished in argument "*files*" before passing in. If no file type option is given, the default types (file, dir, and link) are used.
-
------------
-<h2 id="2">2.Examples</h2>
-
-#### Example 1: Add "-" between "*year*" "*month*" and "*day*" in filenames
-
-- Files at the beginning 
-
-![](example/ls-1.png)
-
-- Rename **TEST MODE**
-
-![](example/rn-1-t.png)
-
-- Rename **VERBOSE TEST MODE**
-
-![](example/rn-1-tv.png)
-
-......
-
-![](example/rn-1-tv2.png)
-
-- Rename **RUN MODE**
-
-![](example/rn-1.png)
-
-- Files after renaming
-
-![](example/ls-2.png)
-
-
-#### Example 2: Add serial number
-
-![](example/rn-2.png)
+    The file type options (-FDBCSPL) are used to filter unexpected files. It can
+    also be accomplished by user in argument <files> before passing it in. If no
+    file type option is given, the default types (file, dir, and link) are used.
 
 --------------
-<h2 id="3">3.Install</h2>
+<h2 id="2">2.Install</h2>
 
     git clone https://github.com/miboyu/rn
     (or git clone https://gitee.com/miboyu/rn)
@@ -105,7 +76,15 @@ The file type options (-FDBCSPL) are used to filter unexpected files. It can als
     make install
 
 --------------
-<h2 id="4">4.Change Log</h2>
+<h2 id="3">3.Change Log</h2>
+
+    1.0.5 (2020/09/27)
+        Remove the --origin and --substi options, use position arguments.
+        Remove --test option, defaulted as test mode.
+
+    1.0.4 (2019/11/21)
+        Fix the filename-with-space problem, see help for details.
+        Remove "--space" option.
 
     1.0.3 (2019/09/19)
         Make the prompted command name dynamic.
@@ -124,18 +103,20 @@ The file type options (-FDBCSPL) are used to filter unexpected files. It can als
         Initial version.
 
 --------------
-<h2 id="5">5.License</h2>
+<h2 id="4">4.License</h2>
 
 This bash script is under license of GPLv3.
 
 ---------------
-<h2 id="6">6.TODO</h2>
-- Write renaming log, and add option --roll-back to roll back from the log. <br>
-- Add more examples.
+<h2 id="5">5.TODO</h2>
+- Write renaming log, and add option --roll-back to roll back from the log.
 
 --------------
-<h3 id="7">Author: Boyu Mi (miboyu@yeah.net)</h3>
+<h3 id="6">Author: Boyu Mi (miboyu@yeah.net)</h3>
 
-Thanks for using the script. If you feel good about it, a recommemdation to your friends will be appreciated. Any bugs or suggestions, please contact the author (_miboyu@yeah.net_). Your feedback will help improving the script ^o^
+Thanks for using the script. If you feel good about it, a recommendation to your
+friends will be appreciated. Any bugs or suggestions, please contact the author
+(_miboyu@yeah.net_). Your feedback will help improving the script ^o^
 
 --------------
+
